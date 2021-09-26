@@ -17,6 +17,7 @@ dense_3 = 64
 num_classes = 5
 epochs = 10
 rate = 0.2
+thresholds = 0.3
 
 verbose = 1
 val_split = 0.2

@@ -1,10 +1,10 @@
-import os
 import pathlib
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-import tensorflow as tf
-import logging
-logging.getLogger('tensorflow').disabled = True
+import logging, os
+logging.disable(logging.WARNING)
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
 import numpy as np
+import tensorflow as tf
 from tensorflow.keras.activations import relu
 from tensorflow.keras.models import Model, load_model
 from tensorflow.keras.layers import Dense, BatchNormalization, Dropout
@@ -27,31 +27,41 @@ class ManiocDiseaseDetection(object):
         self.train_step = self.train_generator.samples // batch_size
         self.validation_step = self.validation_generator.samples // valid_size
 
-    def model_conversion(self):
-        functional_model = tf.keras.applications.MobileNetV2(weights="imagenet")
-        functional_model.trainable = False
-        inputs = functional_model.input
+        self.accuracy = tf.keras.metrics.BinaryAccuracy(threshold=thresholds)
+        self.recall = tf.keras.metrics.Recall(thresholds=thresholds)
+        self.precision = tf.keras.metrics.Precision(thresholds=thresholds)
 
-        x = functional_model.layers[-2].output
+    def classifier(self, x):
+        if not self.trainable:
+            x = Dense(dense_1, activation='relu')(x)
+            x = Dense(dense_1)(x)
+            x = BatchNormalization()(x)
+            x = relu(x)
+            x = Dropout(rate)(x)
 
-        x = Dense(dense_1, activation='relu')(x)
-        x = Dense(dense_1)(x)
-        x = BatchNormalization()(x)
-        x = relu(x)
-        x = Dropout(rate)(x)
-
-        x = Dense(dense_2, activation='relu')(x)
-        x = Dense(dense_2)(x)
-        x = BatchNormalization()(x)
-        x = relu(x)
-        x = Dropout(rate)(x)
+            x = Dense(dense_2, activation='relu')(x)
+            x = Dense(dense_2)(x)
+            x = BatchNormalization()(x)
+            x = relu(x)
+            x = Dropout(rate)(x)
 
         x = Dense(dense_3, activation='relu')(x)
         x = Dense(dense_3)(x)
         x = BatchNormalization()(x)
         x = relu(x)
         x = Dropout(rate)(x)
+        return x
 
+    def model_conversion(self, trainable):
+        functional_model = tf.keras.applications.MobileNetV2(weights="imagenet")
+        functional_model.trainable = trainable
+
+        self.trainable = trainable
+
+        inputs = functional_model.input
+
+        x = functional_model.layers[-2].output
+        x = self.classifier(x)
         outputs = Dense(1, activation='sigmoid')(x)
 
         model = Model(
@@ -62,10 +72,19 @@ class ManiocDiseaseDetection(object):
         self.model.summary()
 
     def train(self):
+        callback = tf.keras.callbacks.EarlyStopping(
+                                                monitor='loss', 
+                                                patience=3
+                                                    )
+
         self.model.compile(
                           optimizer='Adam',
                           loss='binary_crossentropy',
-                          metrics=['accuracy']
+                          metrics=[
+                                self.accuracy,
+                                self.recall,
+                                self.precision
+                                  ]
                           )
         self.model.fit(
                     self.train_generator,
@@ -73,7 +92,8 @@ class ManiocDiseaseDetection(object):
                     validation_data= self.validation_generator,
                     validation_steps = self.validation_step,
                     epochs=epochs,
-                    verbose=verbose
+                    verbose=verbose,
+                    callbacks=[callback]
                         )
 
     def save_model(self):
@@ -91,7 +111,7 @@ class ManiocDiseaseDetection(object):
         print("MobileNet Loaded")
 
     def TFconverter(self):
-        converter = tf.lite.TFLiteConverter.from_keras_model(self.feature_model)
+        converter = tf.lite.TFLiteConverter.from_keras_model(self.model)
         converter.optimizations = [tf.lite.Optimize.DEFAULT]
         tflite_model = converter.convert()
 
@@ -121,7 +141,7 @@ class ManiocDiseaseDetection(object):
     def run(self):
         if not os.path.exists(model_converter):
             if not os.path.exists(model_weights):
-                self.model_conversion()
+                self.model_conversion(False)
                 self.train()
                 self.save_model()
             else:
