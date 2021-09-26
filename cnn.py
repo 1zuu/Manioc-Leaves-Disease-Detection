@@ -5,8 +5,9 @@ import tensorflow as tf
 import logging
 logging.getLogger('tensorflow').disabled = True
 import numpy as np
+from tensorflow.keras.activations import relu
 from tensorflow.keras.models import Model, load_model
-from tensorflow.keras.layers import Dense, BatchNormalization
+from tensorflow.keras.layers import Dense, BatchNormalization, Dropout
 from tensorflow.keras import backend as K
 from matplotlib import pyplot as plt
 
@@ -32,12 +33,25 @@ class ManiocDiseaseDetection(object):
         inputs = functional_model.input
 
         x = functional_model.layers[-2].output
+
         x = Dense(dense_1, activation='relu')(x)
+        x = Dense(dense_1)(x)
+        x = BatchNormalization()(x)
+        x = relu(x)
+        x = Dropout(rate)(x)
+
         x = Dense(dense_2, activation='relu')(x)
+        x = Dense(dense_2)(x)
         x = BatchNormalization()(x)
+        x = relu(x)
+        x = Dropout(rate)(x)
+
         x = Dense(dense_3, activation='relu')(x)
-        x = Dense(dense_3, activation='relu')(x)
+        x = Dense(dense_3)(x)
         x = BatchNormalization()(x)
+        x = relu(x)
+        x = Dropout(rate)(x)
+
         outputs = Dense(1, activation='sigmoid')(x)
 
         model = Model(

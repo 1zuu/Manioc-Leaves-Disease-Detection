@@ -16,6 +16,7 @@ dense_2 = 256
 dense_3 = 64
 num_classes = 5
 epochs = 10
+rate = 0.2
 
 verbose = 1
 val_split = 0.2
