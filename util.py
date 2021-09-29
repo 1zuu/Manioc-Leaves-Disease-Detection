@@ -13,9 +13,9 @@ from variables import*
 def move_files(source, destination):
     shutil.move(source, destination)
 
-############################################################################################
+###############################  This Only Runs OneTime  ##################################
 
-def make_class_dir(): # This Only Runs OneTime
+def make_class_dir():
     df_labels = pd.read_csv(train_labels)
     df_labels['label'] = df_labels['label'].astype('int')
     train_images = os.listdir(train_dir)
@@ -47,6 +47,9 @@ def image_data_generator():
                                                     validation_split= val_split,
                                                     preprocessing_function=preprocessing_function
                                                                 )
+    test_datagen = tf.keras.preprocessing.image.ImageDataGenerator(
+                                                    preprocessing_function=preprocessing_function
+                                                                )
 
     train_generator = train_datagen.flow_from_directory(
                                     train_dir,
@@ -55,7 +58,8 @@ def image_data_generator():
                                     batch_size = batch_size,
                                     class_mode='binary',
                                     subset = 'training',
-                                    shuffle = True)
+                                    shuffle = True
+                                    )
 
     validation_generator = train_datagen.flow_from_directory(
                                     train_dir,
@@ -64,6 +68,16 @@ def image_data_generator():
                                     batch_size = valid_size,
                                     class_mode = 'binary',
                                     subset = 'validation',
-                                    shuffle = True)
+                                    shuffle = True
+                                    )
 
-    return train_generator, validation_generator
+    test_generator = test_datagen.flow_from_directory(
+                                    test_dir,
+                                    target_size = target_size,
+                                    color_mode = color_mode,
+                                    batch_size = batch_size,
+                                    class_mode = 'binary',
+                                    shuffle = True
+                                    )
+
+    return train_generator, validation_generator, test_generator

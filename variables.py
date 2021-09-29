@@ -15,16 +15,25 @@ dense_1 = 512
 dense_2 = 256
 dense_3 = 64
 num_classes = 5
-epochs = 10
+epochs = 15
 rate = 0.2
-thresholds = 0.3
+thresholds = 0.4
 
 verbose = 1
 val_split = 0.2
 seed = 1234
 
+
+class_dict = {
+        1 : 'disease',
+        0 : 'no disease'
+            }
+
 # data directories and model paths
 train_dir = 'data/train_images/'
+test_dir = 'data/test_images/'
 train_labels = 'data/train.csv'
 model_weights = "data/weights/model_weights.h5"
 model_converter = "data/weights/model.tflite"
+
+cm_path = 'data/vis/confusion_matrix_{}.png'

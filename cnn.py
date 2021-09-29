@@ -3,7 +3,10 @@ import logging, os
 logging.disable(logging.WARNING)
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
+import itertools
 import numpy as np
+from sklearn.metrics import confusion_matrix
+
 import tensorflow as tf
 from tensorflow.keras.activations import relu
 from tensorflow.keras.models import Model, load_model
@@ -21,9 +24,11 @@ if len(physical_devices) > 0:
 
 class ManiocDiseaseDetection(object):
     def __init__(self):
-        train_generator, validation_generator = image_data_generator()
+        train_generator, validation_generator, test_generator = image_data_generator()
+        self.test_generator = test_generator
         self.train_generator = train_generator
         self.validation_generator = validation_generator
+        self.test_step = self.test_generator.samples // batch_size
         self.train_step = self.train_generator.samples // batch_size
         self.validation_step = self.validation_generator.samples // valid_size
 
@@ -110,6 +115,69 @@ class ManiocDiseaseDetection(object):
                           )
         print("MobileNet Loaded")
 
+    def plot_confusion_matrix(self, data_generator, split, cmap=None, normalize=False):
+        
+        Y = []
+        P = []
+        for x, y in data_generator:
+            pred = self.model.predict(x)
+            p = pred > thresholds
+            Y.extend(y)
+            P.extend(p)
+    
+        Y = np.array([class_dict[y] for y in Y])
+        P = np.array([class_dict[p] for p in P])
+        cm = confusion_matrix(Y, P)
+
+        if cmap is None:
+            cmap = plt.get_cmap('Blues')
+
+        plt.figure(figsize=(30, 30))
+        plt.rcParams.update({'font.size': 22})
+        plt.imshow(cm, interpolation='nearest', cmap=cmap)
+        plt.title('Confusion Matrix for Website Policy Classification')
+        plt.colorbar()
+
+        class_names = list(set(self.encoder.inverse_transform(Y)))
+
+        if class_names is not None:
+            tick_marks = np.arange(len(class_names))
+            plt.xticks(tick_marks, class_names, rotation=0)
+            plt.yticks(tick_marks, class_names)
+
+        if normalize:
+            cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+
+
+        thresh = cm.max() / 1.5 if normalize else cm.max() / 2
+        for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+            if normalize:
+                plt.text(j, i, "{:0.4f}".format(cm[i, j]),
+                        horizontalalignment="center",
+                        color="white" if cm[i, j] > thresh else "black")
+            else:
+                plt.text(j, i, "{:,}".format(cm[i, j]),
+
+                        horizontalalignment="center",
+                        color="white" if cm[i, j] > thresh else "black")
+
+
+        plt.tight_layout()
+        plt.ylabel('True Label')
+        plt.xlabel('Predicted Label')
+        plt.title('Confusion Matrix for {} Set'.format(split))
+        plt.savefig(cm_path.format(split))
+
+    def evaluations(self):
+        self.model.evaluate(self.train_generator, steps=self.train_step)
+        self.model.evaluate(self.validation_generator, steps=self.validation_step)
+        self.model.evaluate(self.test_generator, steps=self.test_step)
+
+    def visualization(self):
+        self.plot_confusion_matrix(self.train_generator, 'train')
+        self.plot_confusion_matrix(self.validation_generator, 'validation')
+        self.plot_confusion_matrix(self.test_generator, 'test')
+
     def TFconverter(self):
         converter = tf.lite.TFLiteConverter.from_keras_model(self.model)
         converter.optimizations = [tf.lite.Optimize.DEFAULT]
@@ -146,8 +214,11 @@ class ManiocDiseaseDetection(object):
                 self.save_model()
             else:
                 self.loading_model()
+            self.evaluations()
+            self.visualization()
             self.TFconverter()
         self.TFinterpreter()    
 
-model = ManiocDiseaseDetection()
-model.run()
+if __name__ == "__main__":
+    model = ManiocDiseaseDetection()
+    model.run()
