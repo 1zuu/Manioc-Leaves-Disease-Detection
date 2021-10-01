@@ -5,7 +5,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 import itertools
 import numpy as np
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, classification_report
 
 import tensorflow as tf
 from tensorflow.keras.activations import relu
@@ -119,12 +119,21 @@ class ManiocDiseaseDetection(object):
         
         Y = []
         P = []
-        for x, y in data_generator:
-            pred = self.model.predict(x)
-            p = pred > thresholds
+        split_size = valid_size if split == 'validation' else batch_size
+        steps = data_generator.samples // split_size
+        for i in range(steps):
+            print('\r{}/{}'.format(i, steps), end='')
+
+            x, y = data_generator.next()
+            pred = self.model.predict(x).squeeze()
+            p = (pred > thresholds).astype(int)
             Y.extend(y)
             P.extend(p)
-    
+
+        print('##########################################################################################################################\n')
+        print(classification_report(Y, P, target_names=class_names))
+        print('\n##########################################################################################################################')
+
         Y = np.array([class_dict[y] for y in Y])
         P = np.array([class_dict[p] for p in P])
         cm = confusion_matrix(Y, P)
@@ -133,12 +142,10 @@ class ManiocDiseaseDetection(object):
             cmap = plt.get_cmap('Blues')
 
         plt.figure(figsize=(30, 30))
-        plt.rcParams.update({'font.size': 22})
+        plt.rcParams.update({'font.size': 40})
         plt.imshow(cm, interpolation='nearest', cmap=cmap)
-        plt.title('Confusion Matrix for Website Policy Classification')
+        plt.title('Confusion Matrix for Manioc Disease Ditection : {} Split'.format(split))
         plt.colorbar()
-
-        class_names = list(set(self.encoder.inverse_transform(Y)))
 
         if class_names is not None:
             tick_marks = np.arange(len(class_names))
@@ -165,7 +172,7 @@ class ManiocDiseaseDetection(object):
         plt.tight_layout()
         plt.ylabel('True Label')
         plt.xlabel('Predicted Label')
-        plt.title('Confusion Matrix for {} Set'.format(split))
+        plt.title('Confusion Matrix for {} Split'.format(split))
         plt.savefig(cm_path.format(split))
 
     def evaluations(self):
@@ -174,9 +181,9 @@ class ManiocDiseaseDetection(object):
         self.model.evaluate(self.test_generator, steps=self.test_step)
 
     def visualization(self):
-        self.plot_confusion_matrix(self.train_generator, 'train')
-        self.plot_confusion_matrix(self.validation_generator, 'validation')
         self.plot_confusion_matrix(self.test_generator, 'test')
+        # self.plot_confusion_matrix(self.validation_generator, 'validation')
+        # self.plot_confusion_matrix(self.train_generator, 'train')
 
     def TFconverter(self):
         converter = tf.lite.TFLiteConverter.from_keras_model(self.model)
@@ -207,17 +214,17 @@ class ManiocDiseaseDetection(object):
         return output_data
 
     def run(self):
-        if not os.path.exists(model_converter):
-            if not os.path.exists(model_weights):
-                self.model_conversion(False)
-                self.train()
-                self.save_model()
-            else:
-                self.loading_model()
-            self.evaluations()
-            self.visualization()
-            self.TFconverter()
-        self.TFinterpreter()    
+        # if not os.path.exists(model_converter):
+        if not os.path.exists(model_weights):
+            self.model_conversion(False)
+            self.train()
+            self.save_model()
+        else:
+            self.loading_model()
+        self.visualization()
+        # self.evaluations()
+        # self.TFconverter()
+        # self.TFinterpreter()    
 
 if __name__ == "__main__":
     model = ManiocDiseaseDetection()

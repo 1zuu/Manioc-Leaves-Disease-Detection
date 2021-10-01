@@ -17,7 +17,7 @@ dense_3 = 64
 num_classes = 5
 epochs = 15
 rate = 0.2
-thresholds = 0.4
+thresholds = 0.5
 
 verbose = 1
 val_split = 0.2
@@ -25,10 +25,11 @@ seed = 1234
 
 
 class_dict = {
-        1 : 'disease',
-        0 : 'no disease'
+        0 : 'healthy',
+        1 : 'disease'
             }
 
+class_names = ['healthy', 'disease']
 # data directories and model paths
 train_dir = 'data/train_images/'
 test_dir = 'data/test_images/'
