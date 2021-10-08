@@ -23,6 +23,8 @@ verbose = 1
 val_split = 0.2
 seed = 1234
 
+host = 'localhost'
+port = 5000
 
 class_dict = {
         0 : 'healthy',

@@ -182,8 +182,8 @@ class ManiocDiseaseDetection(object):
 
     def visualization(self):
         self.plot_confusion_matrix(self.test_generator, 'test')
-        # self.plot_confusion_matrix(self.validation_generator, 'validation')
-        # self.plot_confusion_matrix(self.train_generator, 'train')
+        self.plot_confusion_matrix(self.validation_generator, 'validation')
+        self.plot_confusion_matrix(self.train_generator, 'train')
 
     def TFconverter(self):
         converter = tf.lite.TFLiteConverter.from_keras_model(self.model)
@@ -211,21 +211,18 @@ class ManiocDiseaseDetection(object):
         self.interpreter.invoke()
 
         output_data = self.interpreter.get_tensor(self.output_details[0]['index'])
+        output_data = output_data.squeeze()
+        output_data = (output_data > thresholds).astype(int)
+        output_data = class_dict[output_data]
         return output_data
 
     def run(self):
-        # if not os.path.exists(model_converter):
-        if not os.path.exists(model_weights):
-            self.model_conversion(False)
-            self.train()
-            self.save_model()
-        else:
-            self.loading_model()
-        self.visualization()
-        # self.evaluations()
-        # self.TFconverter()
-        # self.TFinterpreter()    
-
-if __name__ == "__main__":
-    model = ManiocDiseaseDetection()
-    model.run()
+        if not os.path.exists(model_converter):
+            if not os.path.exists(model_weights):
+                self.model_conversion(False)
+                self.train()
+                self.save_model()
+            else:
+                self.loading_model()
+            self.TFconverter()
+        self.TFinterpreter()    
